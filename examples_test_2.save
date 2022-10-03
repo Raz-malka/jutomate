@@ -1,0 +1,96 @@
+import datetime
+import pendulum
+import time
+
+from airflow.operators.python_operator import PythonOperator
+from airflow.operators.dummy_operator import DummyOperator
+from airflow.models import Variable
+from datetime import timedelta, date
+import re
+from airflow.operators.dagrun_operator import TriggerDagRunOperator
+from airflow.utils.trigger_rule import TriggerRule
+
+from airflow import DAG
+from airflow import AirflowException
+from SolarEdge import Solaredge
+from SolarEdgeAirFlowRunner import SolaredgeAirFlowRunner
+
+start_date  =   "2022-08-16"
+end_date    =   "2022-08-18"
+if (start_date is not None and  end_date is not None):
+    start_date 	= datetime.datetime.strptime(start_date, '%Y-%m-%d').date()
+    end_date 	= datetime.datetime.strptime(end_date, '%Y-%m-%d').date()
+
+list_sites     = Variable.get("list_sites", deserialize_json=True)
+list_inverters = Variable.get("list_components", deserialize_json=True)
+
+def daterange(start_date, end_date):
+    for n in range(int ((end_date - start_date).days)):
+        yield start_date + timedelta(n)
+
+def update_site_list(datum_freq_min):
+    base_api = Solaredge("EC6PM19AGTOXAWM0QFTR5UFBH471V8O5","https://monitoringapi.solaredge.com")
+    airflow_runner = SolaredgeAirFlowRunner(base_api,"bse-ingestion")
+    # get site list
+    sites = airflow_runner.get_sites()
+    site_id_list = []
+    for site_dict in sites[1]:
+        site_id_list.append(site_dict.get('id'))
+    #update airflow variable
+    print(site_id_list)
+    Variable.set("list_sites", site_id_list)
+    print("Thanks you for getting sites list!")
+
+def test(datum_freq_min):
+    base_api = Solaredge("EC6PM19AGTOXAWM0QFTR5UFBH471V8O5","https://monitoringapi.solaredge.com")
+    airflow_runner = SolaredgeAirFlowRunner(base_api,"bse-ingestion")
+
+    #get inverter list
+    inventer_id_list = []
+    for single_date in daterange(start_date, end_date):
+        for site_id in list_sites:
+            inventory = airflow_runner.get_inventory(str(site_id))
+            inverters = inventory.get('Inventory').get('inverters')
+            for inverter in inverters:
+                #single inverter
+                print (inverter.get('SN'))
+                inventer_id_list.append(inverter.get('SN'))
+    print("Thanks you!")
+    print(inventer_id_list)
+
+with DAG(
+    dag_id='test2',
+    schedule_interval=None,
+    start_date=pendulum.datetime(2022, 1, 1, tz="UTC"),
+    catchup=False,
+    concurrency=10,
+    max_active_runs=1
+) as dag:
+
+
+    start = DummyOperator(task_id='start', dag=dag)
+    start_site_inverters_loop = DummyOperator(task_id='start_site_inverters_loop', dag=dag)
+    end = DummyOperator(task_id='end', dag=dag, trigger_rule = TriggerRule.ALL_DONE)
+
+    #example : 132 sites, 1-4 inverters per site, each inveter has componenets.
+    update_site_list_task = PythonOperator(
+        task_id='update_site_list_task',
+        provide_context=True,
+        dag=dag,
+        op_kwargs={
+                    "datum_freq_min": 15
+                  },
+        python_callable=update_site_list, 
+        trigger_rule=TriggerRule.ALL_DONE)
+
+    update_inverters_list_task = PythonOperator(
+        task_id='test',
+        provide_context=True,
+        dag=dag,
+        op_kwargs={
+                    "datum_freq_min": 15
+                  },
+        python_callable=test,
+        trigger_rule=TriggerRule.ALL_DONE)
+    
+    start >> update_site_list_task >> start_site_inverters_loop >> update_inverters_list_task >> end
