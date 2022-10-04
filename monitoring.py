@@ -149,4 +149,3 @@ with DAG(
         )
 
         start >> read_table >> await_query >> query_check >> send_email >> end
-        
