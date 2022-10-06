@@ -30,10 +30,19 @@ with DAG(
     """,
     """
         MSCK REPAIR TABLE `brightsoutce_silver`.`sites_metadata`;
+    """,
+    """
+        MSCK REPAIR TABLE `brightsoutce_bronze`.`inverters_data`;
+    """,
+    """
+        MSCK REPAIR TABLE `brightsoutce_bronze`.`sites_invertory_details`;
+    """,
+    """
+        MSCK REPAIR TABLE `brightsoutce_bronze`.`sites_metadata`;
     """]
 
     #Thables name
-    tables = ["inverters_data", "sites_invertory_details", "sites_metadata"]
+    tables = ["inverters_data_silver", "sites_invertory_details_silver", "sites_metadata_silver","inverters_data_bronze", "sites_invertory_details_bronze", "sites_metadata_bronze"]
 
     #Sends a pyspark script with a date variable to the cluster
     SPARK_STEPS = [
