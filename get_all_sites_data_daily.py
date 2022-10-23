@@ -78,7 +78,7 @@ with DAG(
     start = DummyOperator(task_id='start', dag=dag)
     start_site_inverters_loop = DummyOperator(task_id='start_site_inverters_loop', dag=dag)
     start_site_inverters_data = DummyOperator(task_id='start_site_inverters_data', dag=dag)
-    end = DummyOperator(task_id='end', dag=dag, trigger_rule = TriggerRule.ALL_DONE)
+    end = DummyOperator(task_id='end', dag=dag, trigger_rule = TriggerRule.ONE_SUCCESS)
 
     #example : 132 sites, 1-4 inverters per site, each inveter has componenets.
     update_site_list_task = PythonOperator(
@@ -111,6 +111,8 @@ with DAG(
                             "datum_freq_min": 15,
                             "site_id": site_id
                         },
+            execution_timeout=timedelta(seconds=600),
+            retries=2,
             python_callable = update_inverters_list, 
             trigger_rule = TriggerRule.ALL_DONE)
         if rows_count == num_rows:
@@ -147,6 +149,8 @@ with DAG(
                             "start_date": start_date,
                             "end_date": end_date
                             },
+                execution_timeout=timedelta(seconds=600),
+                retries=2,
                 python_callable = update_inverters_data, 
                 trigger_rule = TriggerRule.ALL_DONE)
             if rows_count == num_rows:

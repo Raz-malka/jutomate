@@ -85,6 +85,8 @@ with DAG(
                                 "start_date": start_date,
                                 "end_date": end_datetime
                                 },
+                    execution_timeout=timedelta(seconds=600),
+                    retries=2,
                     python_callable = update_inverters_data, 
                     trigger_rule = TriggerRule.ALL_DONE)
                 if rows_count == num_rows:
