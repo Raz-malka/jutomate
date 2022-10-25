@@ -30,31 +30,10 @@ with DAG(
     """,
     """
         MSCK REPAIR TABLE `brightsoutce_silver`.`sites_metadata`;
-    """,
-    """
-        MSCK REPAIR TABLE `brightsoutce_bronze`.`inverters_data`;
-    """,
-    """
-        MSCK REPAIR TABLE `brightsoutce_bronze`.`sites_invertory_details`;
-    """,
-    """
-        MSCK REPAIR TABLE `brightsoutce_bronze`.`sites_metadata`;
     """]
 
     #Thables name
-    tables = ["inverters_data_silver", "sites_invertory_details_silver", "sites_metadata_silver","inverters_data_bronze", "sites_invertory_details_bronze", "sites_metadata_bronze"]
-
-    #Sends a pyspark script with a date variable to the cluster
-    SPARK_STEPS = [
-        {
-            'Name': 'calculate_pi',
-            'ActionOnFailure': 'CONTINUE',
-            'HadoopJarStep': {
-                'Jar': 'command-runner.jar',
-                'Args': ["spark-submit","--deploy-mode","cluster","s3://pyspark-script/Silver-BrightSource_daily.py","--date_t",str(date_t)],
-            },
-        }
-    ]
+    tables = ["inverters_data_silver", "sites_invertory_details_silver", "sites_metadata_silver"]
 
     #System data of the cluster
     JOB_FLOW_OVERRIDES = {
@@ -79,40 +58,10 @@ with DAG(
         'ServiceRole': 'EMR_DefaultRole',
     }
 
-    #Deletes the old files from S3 of sites metadata
-    delete_hold_sites_metadata_data = S3DeleteObjectsOperator(
-        task_id="delete_hold_sites_metadata_data",
-        bucket="bse-silver",
-        prefix="sites_metadata",
-    )
-
-    #Deletes the old files from S3 of sites invertory details
-    delete_hold_sites_invertory_details_data = S3DeleteObjectsOperator(
-        task_id="delete_hold_sites_invertory_details_data",
-        bucket="bse-silver",
-        prefix="sites_invertory_details",
-    )
-
     #Creates the cluster
     cluster_creator = EmrCreateJobFlowOperator(
         task_id='create_job_flow',
         job_flow_overrides=JOB_FLOW_OVERRIDES
-    )
-
-    #Runs an action with a pyspark script
-    step_adder = EmrAddStepsOperator(
-        task_id='add_steps',
-        job_flow_id=cluster_creator.output,
-        steps=SPARK_STEPS
-    )
-
-    #Waiting for the script to finish running
-    step_checker = EmrStepSensor(
-        task_id='watch_step',
-        job_flow_id=cluster_creator.output,
-        execution_timeout=timedelta(seconds=1200),
-        retries=2,
-        step_id="{{ task_instance.xcom_pull(task_ids='add_steps', key='return_value')[0] }}"
     )
 
     #Terminated the cluster
@@ -130,12 +79,9 @@ with DAG(
             trigger_rule=TriggerRule.ALL_DONE
         )
 
-    delete_hold_sites_metadata_data >> cluster_creator
-    delete_hold_sites_invertory_details_data >> cluster_creator
-    step_adder >> step_checker >> cluster_remover
-
     #A loop of updates tables
     for query, table in zip(queries, tables):
+
         Updating_tables = AthenaOperator(
             task_id=f'Updating_tables_{table}',
             query=query,
@@ -144,5 +90,47 @@ with DAG(
             retries=2,
             output_location='s3://airflow-results/'
         )
+            
+        table_name = table.replace('_silver', '')
 
+        #Sends a pyspark script with a date variable to the cluster
+        SPARK_STEPS = [
+            {
+                'Name': 'calculate_pi',
+                'ActionOnFailure': 'CONTINUE',
+                'HadoopJarStep': {
+                    'Jar': 'command-runner.jar',
+                    'Args': ["spark-submit","--deploy-mode","cluster",f"s3://pyspark-script/Silver-BrightSource_daily_{table_name}.py","--date_t",str(date_t)],
+                },
+            }
+        ]
+
+        #Runs an action with a pyspark script
+        step_adder = EmrAddStepsOperator(
+            task_id=f'add_steps_{table_name}',
+            job_flow_id=cluster_creator.output,
+            steps=SPARK_STEPS
+        )
+
+        #Waiting for the script to finish running
+        step_checker = EmrStepSensor(
+            task_id=f'watch_step_{table_name}',
+            job_flow_id=cluster_creator.output,
+            execution_timeout=timedelta(seconds=1200),
+            retries=2,
+            step_id=f"{{{{ task_instance.xcom_pull(task_ids='add_steps_{table_name}', key='return_value')[0] }}}}"
+        )
+        if table != "inverters_data_silver":
+            #Deletes the old files from S3
+            delete_hold_data = S3DeleteObjectsOperator(
+                task_id=f"delete_hold_{table_name}_data",
+                bucket="bse-silver",
+                prefix=table_name,
+            )
+
+            delete_hold_data >> cluster_creator >> step_adder >> step_checker >> cluster_remover
+    
+        else:
+            step_adder >> step_checker >> cluster_remover
+        
         cluster_remover >> Updating_tables >> run_gold_daily

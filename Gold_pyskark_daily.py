@@ -35,18 +35,6 @@ with DAG(
     #Thables name
     tables = ["inverters_data", "inverters_data_agg", "sites_metadata"]
 
-    #Sends a pyspark script with a date variable to the cluster
-    SPARK_STEPS = [
-        {
-            'Name': 'calculate_pi',
-            'ActionOnFailure': 'CONTINUE',
-            'HadoopJarStep': {
-                'Jar': 'command-runner.jar',
-                'Args': ["spark-submit","--deploy-mode","cluster","s3://pyspark-script/Gold-BrightSource_daily.py","--date_t",str(date_t)],
-            },
-        }
-    ]
-
     #System data of the cluster
     JOB_FLOW_OVERRIDES = {
         'Name': 'pyspark',
@@ -70,33 +58,10 @@ with DAG(
         'ServiceRole': 'EMR_DefaultRole',
     }
 
-    #Deletes the old files from S3 of sites metadata
-    delete_hold_sites_metadata_data = S3DeleteObjectsOperator(
-        task_id="delete_hold_sites_metadata_data",
-        bucket="bse-gold",
-        prefix="sites_metadata",
-    )
-
     #Creates the cluster
     cluster_creator = EmrCreateJobFlowOperator(
         task_id='create_job_flow',
         job_flow_overrides=JOB_FLOW_OVERRIDES
-    )
-
-    #Runs an action with a pyspark script
-    step_adder = EmrAddStepsOperator(
-        task_id='add_steps',
-        job_flow_id=cluster_creator.output,
-        steps=SPARK_STEPS
-    )
-
-    #Waiting for the script to finish running
-    step_checker = EmrStepSensor(
-        task_id='watch_step',
-        job_flow_id=cluster_creator.output,
-        execution_timeout=timedelta(seconds=600),
-        retries=2,
-        step_id="{{ task_instance.xcom_pull(task_ids='add_steps', key='return_value')[0] }}"
     )
 
     #Terminated the cluster
@@ -114,11 +79,37 @@ with DAG(
             trigger_rule=TriggerRule.ALL_DONE
         )
 
-    delete_hold_sites_metadata_data >> cluster_creator
-    step_adder >> step_checker >> cluster_remover
-
     #A loop of updates tables
     for query, table in zip(queries, tables):
+
+        #Sends a pyspark script with a date variable to the cluster
+        SPARK_STEPS = [
+            {
+                'Name': 'calculate_pi',
+                'ActionOnFailure': 'CONTINUE',
+                'HadoopJarStep': {
+                    'Jar': 'command-runner.jar',
+                    'Args': ["spark-submit","--deploy-mode","cluster",f"s3://pyspark-script/Gold-BrightSource_daily_{table}.py","--date_t",str(date_t)],
+                },
+            }
+        ]
+
+        #Runs an action with a pyspark script
+        step_adder = EmrAddStepsOperator(
+            task_id=f'add_steps_{table}',
+            job_flow_id=cluster_creator.output,
+            steps=SPARK_STEPS
+        )
+
+        #Waiting for the script to finish running
+        step_checker = EmrStepSensor(
+            task_id=f'watch_step_{table}',
+            job_flow_id=cluster_creator.output,
+            execution_timeout=timedelta(seconds=600),
+            retries=2,
+            step_id=f"{{{{ task_instance.xcom_pull(task_ids='add_steps_{table}', key='return_value')[0] }}}}"
+        )
+
         Updating_tables = AthenaOperator(
             task_id=f'Updating_tables_{table}',
             query=query,
@@ -128,4 +119,16 @@ with DAG(
             output_location='s3://airflow-results/'
         )
 
-        cluster_remover >> Updating_tables >> run_monitoring_daily
+        if table == "sites_metadata":
+            
+            #Deletes the old files from S3 of sites metadata
+            delete_hold_sites_metadata_data = S3DeleteObjectsOperator(
+                task_id="delete_hold_sites_metadata_data",
+                bucket="bse-gold",
+                prefix="sites_metadata",
+            )
+
+            delete_hold_sites_metadata_data >> cluster_creator >> step_adder >> step_checker >> cluster_remover >> Updating_tables >> run_monitoring_daily
+        
+        else:
+            step_adder >> step_checker >> cluster_remover >> Updating_tables >> run_monitoring_daily
