@@ -105,7 +105,7 @@ with DAG(
         step_checker = EmrStepSensor(
             task_id=f'watch_step_{table}',
             job_flow_id=cluster_creator.output,
-            execution_timeout=timedelta(seconds=600),
+            execution_timeout=timedelta(seconds=1200),
             retries=2,
             step_id=f"{{{{ task_instance.xcom_pull(task_ids='add_steps_{table}', key='return_value')[0] }}}}"
         )
@@ -114,7 +114,7 @@ with DAG(
             task_id=f'Updating_tables_{table}',
             query=query,
             database="brightsoutce_silver",
-            execution_timeout=timedelta(seconds=600),
+            execution_timeout=timedelta(seconds=1200),
             retries=2,
             output_location='s3://airflow-results/'
         )
