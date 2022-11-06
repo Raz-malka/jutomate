@@ -19,7 +19,7 @@ from SolarEdgeAirFlowRunner import SolaredgeAirFlowRunner
 start_date  =   datetime.datetime.combine(datetime.date.today(), datetime.datetime.min.time())
 end_date    =   datetime.datetime.now()
 ## if it new day bring the start of yesterday and start of today 
-if end_date.strftime("%X") <= "00:14:00":
+if end_date.strftime("%X") <= "00:20:00":
     end_date = start_date
     start_date = start_date - timedelta(days=1)
 
@@ -66,11 +66,10 @@ def update_inverters_data(datum_freq_min,site_id,serial_num,start_date,end_date)
 
 with DAG(
     dag_id='get_all_sites_data_daily',
-    # schedule_interval='*/15 * * * *',
-    schedule_interval='0 * * * *',
+    schedule_interval=None,
     start_date=pendulum.datetime(2022, 1, 1, tz="UTC"),
     catchup=False,
-    concurrency=10,
+    concurrency=20,
     max_active_runs=1
 ) as dag:
 
@@ -113,6 +112,7 @@ with DAG(
                         },
             execution_timeout=timedelta(seconds=600),
             retries=2,
+            retry_delay=timedelta(seconds=10),
             python_callable = update_inverters_list, 
             trigger_rule = TriggerRule.ALL_DONE)
         if rows_count == num_rows:
@@ -151,6 +151,7 @@ with DAG(
                             },
                 execution_timeout=timedelta(seconds=600),
                 retries=2,
+                retry_delay=timedelta(seconds=10),
                 python_callable = update_inverters_data, 
                 trigger_rule = TriggerRule.ALL_DONE)
             if rows_count == num_rows:
@@ -161,6 +162,3 @@ with DAG(
             dummy_prev_inverters >> update_inverters_data_task >> dummy_after_inverters
             rows_count = rows_count + 1
     dummy_after_inverters >> end
-
-
-

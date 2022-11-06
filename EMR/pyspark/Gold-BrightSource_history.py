@@ -17,6 +17,8 @@ s3_Silver_path_inverters_data = "s3://bse-silver/inverters_data/dt={}/".format(d
 s3_Gold_path_inverters_data = "s3://bse-gold/inverters_data/dt={}/".format(date_t)
 df_inverters_data = spark.read.parquet(s3_Silver_path_inverters_data)
 exp_step1_df_inverters_data = df_inverters_data.select("Datetime",
+                                                       "Local_site_id",
+                                                       "Local_inverter_id",
                                                        "AC_Voltage",
                                                        "AC_Power",
                                                        "AC_Energy",

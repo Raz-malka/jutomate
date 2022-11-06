@@ -1,3 +1,4 @@
+import datetime
 from datetime import timedelta, date
 import pendulum
 from airflow import DAG
@@ -11,7 +12,7 @@ from sqlalchemy import table
 
 with DAG(
     dag_id='emr_job_flow_manual_steps_dag_silver_daily',
-    schedule_interval='0 6 * * *',
+    schedule_interval=None,
     start_date=pendulum.datetime(2022, 1, 1, tz="UTC"),
     catchup=False,
     concurrency=10,
@@ -19,21 +20,15 @@ with DAG(
 ) as dag:
 
     #get date of yesterday
-    date_t = date.today() - timedelta(1)
-
-    #A query that updates the tables in athena
-    queries = ["""
-        MSCK REPAIR TABLE `brightsoutce_silver`.`inverters_data`;
-    """,
-    """
-        MSCK REPAIR TABLE `brightsoutce_silver`.`sites_invertory_details`;
-    """,
-    """
-        MSCK REPAIR TABLE `brightsoutce_silver`.`sites_metadata`;
-    """]
+    now = datetime.datetime.now()
+    #When the day is over, bring all of yesterday
+    if now.strftime("%X") <= "00:20:00":
+        date_t = date.today() - timedelta(1)
+    else:
+        date_t = date.today()
 
     #Thables name
-    tables = ["inverters_data_silver", "sites_invertory_details_silver", "sites_metadata_silver"]
+    tables = ["inverters_data", "sites_invertory_details", "sites_metadata"]
 
     #System data of the cluster
     JOB_FLOW_OVERRIDES = {
@@ -70,28 +65,9 @@ with DAG(
         job_flow_id=cluster_creator.output, 
         trigger_rule = TriggerRule.ALL_DONE
     )
-    
-    #Running the gold daily dag
-    run_gold_daily = TriggerDagRunOperator(
-            task_id='run_gold_daily',
-            trigger_dag_id='emr_job_flow_manual_steps_dag_gold_daily',
-            wait_for_completion=True,
-            trigger_rule=TriggerRule.ALL_DONE
-        )
 
     #A loop of updates tables
-    for query, table in zip(queries, tables):
-
-        Updating_tables = AthenaOperator(
-            task_id=f'Updating_tables_{table}',
-            query=query,
-            database="brightsoutce_silver",
-            execution_timeout=timedelta(seconds=1200),
-            retries=2,
-            output_location='s3://airflow-results/'
-        )
-            
-        table_name = table.replace('_silver', '')
+    for table in tables:
 
         #Sends a pyspark script with a date variable to the cluster
         SPARK_STEPS = [
@@ -100,37 +76,37 @@ with DAG(
                 'ActionOnFailure': 'CONTINUE',
                 'HadoopJarStep': {
                     'Jar': 'command-runner.jar',
-                    'Args': ["spark-submit","--deploy-mode","cluster",f"s3://pyspark-script/Silver-BrightSource_daily_{table_name}.py","--date_t",str(date_t)],
+                    'Args': ["spark-submit","--deploy-mode","cluster",f"s3://pyspark-script/Silver-BrightSource_daily_{table}.py","--date_t",str(date_t)],
                 },
             }
         ]
 
         #Runs an action with a pyspark script
         step_adder = EmrAddStepsOperator(
-            task_id=f'add_steps_{table_name}',
+            task_id=f'add_steps_{table}',
             job_flow_id=cluster_creator.output,
             steps=SPARK_STEPS
         )
 
         #Waiting for the script to finish running
         step_checker = EmrStepSensor(
-            task_id=f'watch_step_{table_name}',
+            task_id=f'watch_step_{table}',
             job_flow_id=cluster_creator.output,
-            execution_timeout=timedelta(seconds=1200),
-            retries=2,
-            step_id=f"{{{{ task_instance.xcom_pull(task_ids='add_steps_{table_name}', key='return_value')[0] }}}}"
+            execution_timeout=timedelta(seconds=600),
+            retries=0,
+            retry_delay=timedelta(seconds=15),
+            step_id=f"{{{{ task_instance.xcom_pull(task_ids='add_steps_{table}', key='return_value')[0] }}}}"
         )
         if table != "inverters_data_silver":
+            
             #Deletes the old files from S3
             delete_hold_data = S3DeleteObjectsOperator(
-                task_id=f"delete_hold_{table_name}_data",
+                task_id=f"delete_hold_{table}_data",
                 bucket="bse-silver",
-                prefix=table_name,
+                prefix=table,
             )
 
             delete_hold_data >> cluster_creator >> step_adder >> step_checker >> cluster_remover
     
         else:
             step_adder >> step_checker >> cluster_remover
-        
-        cluster_remover >> Updating_tables >> run_gold_daily

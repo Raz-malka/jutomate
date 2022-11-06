@@ -1,6 +1,6 @@
 from pyspark.sql.functions import explode, arrays_zip
-from pyspark.sql import SparkSession
 from pyspark.sql.functions import lit, coalesce, col
+from pyspark.sql import SparkSession
 import argparse
 import datetime
 spark = SparkSession \
@@ -17,42 +17,42 @@ s3_Bronze_path_inverters_data = "s3://bse-bronze/inverters_data/dt={}/".format(d
 s3_Silver_path_inverters_data = "s3://bse-silver/inverters_data/dt={}/".format(date_t)
 df_inverters_data = spark.read.json(s3_Bronze_path_inverters_data)
 exp_step1_df_inverters_data = df_inverters_data.select(col("site_id").alias("Local_site_id"),
-                                                      col("inv_id").alias("Local_inverter_id"),
-                                                      explode(arrays_zip("data.telemetries.date",
-                                                                         "data.telemetries.dcVoltage",
-                                                                         # "data.telemetries.inverterMode",
-                                                                         # "data.telemetries.operationMode",
-                                                                         # "data.telemetries.powerLimit",
-                                                                         "data.telemetries.temperature",
-                                                                         "data.telemetries.totalActivePower",
-                                                                         "data.telemetries.totalEnergy",
-                                                                         # "data.telemetries.vL1To2",
-                                                                         # "data.telemetries.vL2To3",
-                                                                         # "data.telemetries.vL3To1",
-                                                                         "data.telemetries.L1Data.acCurrent",
-                                                                         # "data.telemetries.L1Data.acFrequency",
-                                                                         # "data.telemetries.L1Data.activePower",
-                                                                         "data.telemetries.L1Data.acVoltage",
-                                                                         # "data.telemetries.L1Data.apparentPower",
-                                                                         "data.telemetries.L1Data.cosPhi",
-                                                                         "data.telemetries.L1Data.reactivePower",
-                                                                         "data.telemetries.L2Data.acCurrent",
-                                                                         # "data.telemetries.L2Data.acFrequency",
-                                                                         # "data.telemetries.L2Data.activePower",
-                                                                         "data.telemetries.L2Data.acVoltage",
-                                                                         # "data.telemetries.L2Data.apparentPower",
-                                                                         "data.telemetries.L2Data.cosPhi",
-                                                                         "data.telemetries.L2Data.reactivePower",
-                                                                         "data.telemetries.L3Data.acCurrent",
-                                                                         # "data.telemetries.L3Data.acFrequency",
-                                                                         # "data.telemetries.L3Data.activePower",
-                                                                         "data.telemetries.L3Data.acVoltage",
-                                                                         # "data.telemetries.L3Data.apparentPower",
-                                                                         "data.telemetries.L3Data.cosPhi",
-                                                                         "data.telemetries.L3Data.reactivePower"
-                                                                        )
-                                                             )
-                                                     )
+                                                       col("inv_id").alias("Local_inverter_id"),
+                                                       explode(arrays_zip("data.telemetries.date",
+                                                                          "data.telemetries.dcVoltage",
+                                                                          # "data.telemetries.inverterMode",
+                                                                          # "data.telemetries.operationMode",
+                                                                          # "data.telemetries.powerLimit",
+                                                                          "data.telemetries.temperature",
+                                                                          "data.telemetries.totalActivePower",
+                                                                          "data.telemetries.totalEnergy",
+                                                                          # "data.telemetries.vL1To2",
+                                                                          # "data.telemetries.vL2To3",
+                                                                          # "data.telemetries.vL3To1",
+                                                                          "data.telemetries.L1Data.acCurrent",
+                                                                          # "data.telemetries.L1Data.acFrequency",
+                                                                          # "data.telemetries.L1Data.activePower",
+                                                                          "data.telemetries.L1Data.acVoltage",
+                                                                          # "data.telemetries.L1Data.apparentPower",
+                                                                          "data.telemetries.L1Data.cosPhi",
+                                                                          "data.telemetries.L1Data.reactivePower",
+                                                                          "data.telemetries.L2Data.acCurrent",
+                                                                          # "data.telemetries.L2Data.acFrequency",
+                                                                          # "data.telemetries.L2Data.activePower",
+                                                                          "data.telemetries.L2Data.acVoltage",
+                                                                          # "data.telemetries.L2Data.apparentPower",
+                                                                          "data.telemetries.L2Data.cosPhi",
+                                                                          "data.telemetries.L2Data.reactivePower",
+                                                                          "data.telemetries.L3Data.acCurrent",
+                                                                          # "data.telemetries.L3Data.acFrequency",
+                                                                          # "data.telemetries.L3Data.activePower",
+                                                                          "data.telemetries.L3Data.acVoltage",
+                                                                          # "data.telemetries.L3Data.apparentPower",
+                                                                          "data.telemetries.L3Data.cosPhi",
+                                                                          "data.telemetries.L3Data.reactivePower"
+                                                                         )
+                                                              )
+                                                      )
 exp_step2_df_inverters_data = exp_step1_df_inverters_data.select("Local_site_id",
                                                                  "Local_inverter_id",
                                                                  col("col.0").alias("Datetime"),
@@ -72,21 +72,21 @@ exp_step2_df_inverters_data = exp_step1_df_inverters_data.select("Local_site_id"
                                                                  col("col.14").alias("AC_Voltage_L3"),
                                                                  col("col.15").alias("L3Data_cosPhi"),
                                                                  col("col.16").alias("L3Data_reactivePower"))
-                                                                #  "col.17",
-                                                                #  "col.18",
-                                                                #  "col.19",
-                                                                #  "col.20",
-                                                                #  "col.21",
-                                                                #  "col.22",
-                                                                #  "col.23",
-                                                                #  "col.24",
-                                                                #  "col.25",
-                                                                #  "col.26",
-                                                                #  "col.27",
-                                                                #  "col.28",
-                                                                #  "col.29",
-                                                                #  "col.30",
-                                                                #  "col.31")
+                                                                 #  "col.17",
+                                                                 #  "col.18",
+                                                                 #  "col.19",
+                                                                 #  "col.20",
+                                                                 #  "col.21",
+                                                                 #  "col.22",
+                                                                 #  "col.23",
+                                                                 #  "col.24",
+                                                                 #  "col.25",
+                                                                 #  "col.26",
+                                                                 #  "col.27",
+                                                                 #  "col.28",
+                                                                 #  "col.29",
+                                                                 #  "col.30",
+                                                                 #  "col.31")
 exp_step2_df_inverters_data = exp_step2_df_inverters_data.withColumn("AC_Current", (exp_step2_df_inverters_data.AC_Current_L1 + exp_step2_df_inverters_data.AC_Current_L2 + exp_step2_df_inverters_data.AC_Current_L3)/3)\
                                                          .withColumn("AC_Voltage", (exp_step2_df_inverters_data.AC_Voltage_L1 + exp_step2_df_inverters_data.AC_Voltage_L2 + exp_step2_df_inverters_data.AC_Voltage_L3)/3)\
                                                          .withColumn("Reactive_Power", (exp_step2_df_inverters_data.L1Data_reactivePower + exp_step2_df_inverters_data.L2Data_reactivePower + exp_step2_df_inverters_data.L3Data_reactivePower))\

@@ -10,7 +10,7 @@ from airflow.operators.dagrun_operator import TriggerDagRunOperator
 from sqlalchemy import table
 
 with DAG(
-    dag_id='bronze_daily',
+    dag_id='refreshing_tables_athena_daily',
     schedule_interval='0 4 * * *',
     start_date=pendulum.datetime(2022, 1, 1, tz="UTC"),
     catchup=False,
@@ -20,17 +20,32 @@ with DAG(
 
     #A query that updates the tables in athena
     queries = ["""
-        MSCK REPAIR TABLE `brightsoutce_bronze`.`inverters_data`;
-    """,
-    """
         MSCK REPAIR TABLE `brightsoutce_bronze`.`sites_invertory_details`;
     """,
     """
         MSCK REPAIR TABLE `brightsoutce_bronze`.`sites_metadata`;
+    """,
+    """
+        MSCK REPAIR TABLE `brightsoutce_silver`.`inverters_data`;
+    """,
+    """
+        MSCK REPAIR TABLE `brightsoutce_silver`.`sites_invertory_details`;
+    """,
+    """
+        MSCK REPAIR TABLE `brightsoutce_silver`.`sites_metadata`;
+    """,
+    """
+        MSCK REPAIR TABLE `brightsoutce_gold`.`inverters_data`;
+    """,
+    """
+        MSCK REPAIR TABLE `brightsoutce_gold`.`inverters_data_agg`;
+    """,
+    """
+        MSCK REPAIR TABLE `brightsoutce_gold`.`sites_metadata`;
     """]
 
     #Thables name
-    tables = ["inverters_data_bronze", "sites_invertory_details_bronze", "sites_metadata_bronze"]
+    tables = ["sites_invertory_details_bronze", "sites_metadata_bronze","inverters_data_silver", "sites_invertory_details_silver", "sites_metadata_silver","inverters_data", "inverters_data_agg", "sites_metadata"]
     
     #A loop of updates tables
     for query, table in zip(queries, tables):

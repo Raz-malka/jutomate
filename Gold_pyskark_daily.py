@@ -1,3 +1,4 @@
+import datetime
 from datetime import timedelta, date
 import pendulum
 from airflow import DAG
@@ -19,18 +20,12 @@ with DAG(
 ) as dag:
 
     #get date of yesterday
-    date_t = date.today() - timedelta(1)
-
-    #A query that updates the tables in athena
-    queries = ["""
-        MSCK REPAIR TABLE `brightsoutce_gold`.`inverters_data`;
-    """,
-    """
-        MSCK REPAIR TABLE `brightsoutce_gold`.`inverters_data_agg`;
-    """,
-    """
-        MSCK REPAIR TABLE `brightsoutce_gold`.`sites_metadata`;
-    """]
+    now = datetime.datetime.now()
+    #When the day is over, bring all of yesterday
+    if now.strftime("%X") <= "00:20:00":
+        date_t = date.today() - timedelta(1)
+    else:
+        date_t = date.today()
 
     #Thables name
     tables = ["inverters_data", "inverters_data_agg", "sites_metadata"]
@@ -47,7 +42,7 @@ with DAG(
                     'Name': 'Master node',
                     'Market': 'ON_DEMAND',
                     'InstanceRole': 'MASTER',
-                    'InstanceType': 'm5.xlarge',
+                    'InstanceType': 'm5.4xlarge',
                     'InstanceCount': 1,
                 }
             ],
@@ -70,17 +65,9 @@ with DAG(
         job_flow_id=cluster_creator.output, 
         trigger_rule = TriggerRule.ALL_DONE
     )
-    
-    #Running the monitoring dag
-    run_monitoring_daily = TriggerDagRunOperator(
-            task_id='run_monitoring_daily',
-            trigger_dag_id='monitoring',
-            wait_for_completion=True,
-            trigger_rule=TriggerRule.ALL_DONE
-        )
 
     #A loop of updates tables
-    for query, table in zip(queries, tables):
+    for table in tables:
 
         #Sends a pyspark script with a date variable to the cluster
         SPARK_STEPS = [
@@ -93,7 +80,7 @@ with DAG(
                 },
             }
         ]
-
+        
         #Runs an action with a pyspark script
         step_adder = EmrAddStepsOperator(
             task_id=f'add_steps_{table}',
@@ -105,18 +92,10 @@ with DAG(
         step_checker = EmrStepSensor(
             task_id=f'watch_step_{table}',
             job_flow_id=cluster_creator.output,
-            execution_timeout=timedelta(seconds=1200),
-            retries=2,
+            execution_timeout=timedelta(seconds=600),
+            retries=0,
+            retry_delay=timedelta(seconds=15),
             step_id=f"{{{{ task_instance.xcom_pull(task_ids='add_steps_{table}', key='return_value')[0] }}}}"
-        )
-
-        Updating_tables = AthenaOperator(
-            task_id=f'Updating_tables_{table}',
-            query=query,
-            database="brightsoutce_silver",
-            execution_timeout=timedelta(seconds=1200),
-            retries=2,
-            output_location='s3://airflow-results/'
         )
 
         if table == "sites_metadata":
@@ -128,7 +107,7 @@ with DAG(
                 prefix="sites_metadata",
             )
 
-            delete_hold_sites_metadata_data >> cluster_creator >> step_adder >> step_checker >> cluster_remover >> Updating_tables >> run_monitoring_daily
+            delete_hold_sites_metadata_data >> cluster_creator >> step_adder >> step_checker >> cluster_remover #>> Updating_tables >> run_monitoring_daily
         
         else:
-            step_adder >> step_checker >> cluster_remover >> Updating_tables >> run_monitoring_daily
+            step_adder >> step_checker >> cluster_remover #>> Updating_tables >> run_monitoring_daily
