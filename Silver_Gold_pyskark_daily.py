@@ -2,13 +2,26 @@ import datetime
 from datetime import timedelta, date
 import pendulum
 from airflow import DAG
+from airflow.operators.python_operator import PythonOperator
 from airflow.providers.amazon.aws.operators.emr import EmrAddStepsOperator, EmrTerminateJobFlowOperator, EmrCreateJobFlowOperator
 from airflow.providers.amazon.aws.sensors.emr import EmrStepSensor
 from airflow.utils.trigger_rule import TriggerRule
 from airflow.providers.amazon.aws.operators.s3 import S3DeleteObjectsOperator
 from airflow.providers.amazon.aws.operators.athena import AthenaOperator
 from airflow.operators.dagrun_operator import TriggerDagRunOperator
+from airflow.models import Variable
 from sqlalchemy import table
+
+def dateset():
+    Variable.set("today", date.today())
+
+## get datetime of now and the start of the day
+date_t          = date.today()
+airflow_date = Variable.get("today")
+airflow_date = datetime.datetime.strptime(airflow_date, '%Y-%m-%d').date()
+## if it new day bring the start of yesterday and start of today 
+if date_t != airflow_date:
+    date_t = date_t - timedelta(days=1)
 
 with DAG(
     dag_id='emr_job_flow_manual_steps_dag_silver_gold_daily',
@@ -19,13 +32,12 @@ with DAG(
     max_active_runs=1
 ) as dag:
 
-    #get date of yesterday
-    now = datetime.datetime.now()
-    #When the day is over, bring all of yesterday
-    if now.strftime("%X") <= "00:20:00":
-        date_t = date.today() - timedelta(1)
-    else:
-        date_t = date.today()
+    update_date_variable = PythonOperator(
+        task_id='update_date_variable',
+        provide_context=True,
+        dag=dag,
+        python_callable=dateset, 
+        trigger_rule=TriggerRule.ALL_DONE)
 
     #Thables name
     tables = ["inverters_data_silver", "sites_invertory_details_silver", "sites_metadata_silver", "inverters_data_gold", "inverters_data_agg_gold", "sites_metadata_gold"]
@@ -129,7 +141,7 @@ with DAG(
                 delete_hold_data_sites_metadata_silver = S3DeleteObjectsOperator(
                     task_id=f"delete_hold_{table}_data",
                     bucket="bse-silver",
-                    prefix=table_name +"/"+ str(date_t - timedelta(1)),
+                    prefix=table_name +"/dt="+ str(date_t - timedelta(1)),
                 )
 
                 step_adder_sites_metadata_silver >> step_checker_sites_metadata_silver >> delete_hold_data_sites_metadata_silver
@@ -157,7 +169,7 @@ with DAG(
                 delete_hold_data_sites_invertory_details_silver = S3DeleteObjectsOperator(
                     task_id=f"delete_hold_{table}_data",
                     bucket="bse-silver",
-                    prefix=table_name +"/"+ str(date_t - timedelta(1)),
+                    prefix=table_name +"/dt="+ str(date_t - timedelta(1)),
                 )
 
                 step_adder_sites_invertory_details_silver >> step_checker_sites_invertory_details_silver >> delete_hold_data_sites_invertory_details_silver
@@ -198,7 +210,7 @@ with DAG(
                     step_id=f"{{{{ task_instance.xcom_pull(task_ids='add_steps_{table}', key='return_value')[0] }}}}"
                 )
 
-                step_checker_inverters_data_silver >> step_adder_inverters_data_gold >> step_checker_inverters_data_gold >> cluster_remover
+                step_checker_inverters_data_silver >> step_adder_inverters_data_gold >> step_checker_inverters_data_gold >> update_date_variable >> cluster_remover
             
             else:
 
@@ -223,7 +235,7 @@ with DAG(
                 delete_hold_sites_metadata_data_gold = S3DeleteObjectsOperator(
                     task_id=f"delete_hold_{table}_data",
                     bucket="bse-gold",
-                    prefix=table_name +"/"+ str(date_t - timedelta(1)),
+                    prefix=table_name +"/dt="+ str(date_t - timedelta(1)),
                 )
 
-                delete_hold_data_sites_metadata_silver >> step_adder_inverters_data__sites_metadatagold >> step_checker_inverters_data__sites_metadatagold >> delete_hold_sites_metadata_data_gold >> cluster_remover
+                delete_hold_data_sites_metadata_silver >> step_adder_inverters_data__sites_metadatagold >> step_checker_inverters_data__sites_metadatagold >> delete_hold_sites_metadata_data_gold >> update_date_variable >> cluster_remover

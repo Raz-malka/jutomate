@@ -14,12 +14,15 @@ from airflow import DAG
 from airflow import AirflowException
 from SolarEdge import Solaredge
 from SolarEdgeAirFlowRunner import SolaredgeAirFlowRunner
-
+    
 ## get datetime of now and the start of the day
-start_date  =   datetime.datetime.combine(datetime.date.today(), datetime.datetime.min.time())
-end_date    =   datetime.datetime.now()
+start_date   = datetime.datetime.combine(datetime.date.today(), datetime.datetime.min.time())
+airflow_date = Variable.get("today")
+airflow_date = datetime.datetime.strptime(airflow_date, '%Y-%m-%d')
 ## if it new day bring the start of yesterday and start of today 
-if end_date.strftime("%X") <= "00:20:00":
+if start_date == airflow_date:
+    end_date = start_date + timedelta(days=1)
+else:
     end_date = start_date
     start_date = start_date - timedelta(days=1)
 
