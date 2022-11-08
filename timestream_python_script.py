@@ -66,7 +66,7 @@ def timestream_gold_writing(single_date):
                     records = [dc_voltage, temperature, active_power, ac_energy, ac_current_l1, ac_voltage_l1, ac_current_l2, ac_voltage_l2, ac_current_l3, ac_voltage_l3, ac_current, ac_voltage, reactive_power, power_factor, ac_power, dc_current, dc_power, account_id]
                     
                     try:    
-                        result = client_timestream.write_records(DatabaseName="brightsoutce_gold", TableName="inverters_data", Records=records, CommonAttributes=common_attributes)
+                        result = client_timestream.write_records(DatabaseName="brightsource_gold", TableName="inverters_data", Records=records, CommonAttributes=common_attributes)
                     
                     except Exception as err:
                             print("Error:", err)

@@ -32,7 +32,7 @@ with DAG(
 
     #A query that updates the tables in athena
     query = """
-        MSCK REPAIR TABLE `brightsoutce_silver`.`inverters_data`;
+        MSCK REPAIR TABLE `brightsource_silver`.`inverters_data`;
     """
     
     #System data of the cluster
@@ -105,7 +105,7 @@ with DAG(
     Updating_tables = AthenaOperator(
         task_id=f'Updating_tables',
         query=query,
-        database="brightsoutce_silver",
+        database="brightsource_silver",
         output_location='s3://airflow-results/'
     )
     

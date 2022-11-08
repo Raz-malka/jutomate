@@ -55,55 +55,55 @@ with DAG(
             SELECT count_a >= count_b
             FROM
             (SELECT count(distinct local_inverter_id) AS count_a
-            FROM "brightsoutce_silver"."inverters_data"
+            FROM "brightsource_silver"."inverters_data"
             WHERE dt = '{yesterday_date}') as a,
             (SELECT count(distinct local_inverter_id) AS count_b
-            FROM "brightsoutce_silver"."inverters_data"
+            FROM "brightsource_silver"."inverters_data"
             WHERE dt = '{two_days_ago_date}') as b 
            """,
            f"""
             SELECT count_a >= count_b
             FROM
             (SELECT count(distinct local_site_id) AS count_a
-            FROM "brightsoutce_silver"."inverters_data"
+            FROM "brightsource_silver"."inverters_data"
             WHERE dt = '{yesterday_date}') as a,
             (SELECT count(distinct local_site_id) AS count_b
-            FROM "brightsoutce_silver"."inverters_data"
+            FROM "brightsource_silver"."inverters_data"
             WHERE dt = '{two_days_ago_date}') as b
            """,
            f"""
             SELECT count(*) > 0
-            FROM "brightsoutce_silver"."inverters_data"
+            FROM "brightsource_silver"."inverters_data"
             WHERE dt = '{yesterday_date}'
            """,
            f"""
             SELECT count(*) > 0
-            FROM "brightsoutce_silver"."sites_invertory_details"
+            FROM "brightsource_silver"."sites_invertory_details"
             WHERE dt = '{yesterday_date}'
            """,
            f"""
             SELECT count(*) > 0
-            FROM "brightsoutce_silver"."sites_metadata"
+            FROM "brightsource_silver"."sites_metadata"
             WHERE dt = '{yesterday_date}'
            """,
            f"""
             WITH
-                t1 AS (SELECT count(*) as count_a FROM "brightsoutce_silver"."inverters_data"),
-                t2 AS (SELECT count(*) as count_b from (SELECT distinct * FROM "brightsoutce_silver"."inverters_data"))
+                t1 AS (SELECT count(*) as count_a FROM "brightsource_silver"."inverters_data"),
+                t2 AS (SELECT count(*) as count_b from (SELECT distinct * FROM "brightsource_silver"."inverters_data"))
             SELECT count_a = count_b
             FROM t1, t2
            """,
            f"""
             WITH
-                t1 AS (SELECT count(*) as count_a FROM "brightsoutce_silver"."sites_invertory_details"),
-                t2 AS (SELECT count(*) as count_b from (SELECT distinct * FROM "brightsoutce_silver"."sites_invertory_details"))
+                t1 AS (SELECT count(*) as count_a FROM "brightsource_silver"."sites_invertory_details"),
+                t2 AS (SELECT count(*) as count_b from (SELECT distinct * FROM "brightsource_silver"."sites_invertory_details"))
             SELECT count_a = count_b
             FROM t1, t2
            """,
            f"""
             WITH
-                t1 AS (SELECT count(*) as count_a FROM "brightsoutce_silver"."sites_metadata"),
-                t2 AS (SELECT count(*) as count_b from (SELECT distinct * FROM "brightsoutce_silver"."sites_metadata"))
+                t1 AS (SELECT count(*) as count_a FROM "brightsource_silver"."sites_metadata"),
+                t2 AS (SELECT count(*) as count_b from (SELECT distinct * FROM "brightsource_silver"."sites_metadata"))
             SELECT count_a = count_b
             FROM t1, t2
            """
@@ -118,7 +118,7 @@ with DAG(
         read_table = AthenaOperator(
             task_id=f'read_table{x}',
             query=query,
-            database="brightsoutce_silver",
+            database="brightsource_silver",
             output_location='s3://airflow-results/'
         )
 

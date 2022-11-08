@@ -20,39 +20,48 @@ with DAG(
 
     #A query that updates the tables in athena
     queries = ["""
-        MSCK REPAIR TABLE `brightsoutce_bronze`.`sites_invertory_details`;
+        MSCK REPAIR TABLE `brightsource_bronze`.`inverters_data`;
     """,
     """
-        MSCK REPAIR TABLE `brightsoutce_bronze`.`sites_metadata`;
+        MSCK REPAIR TABLE `brightsource_bronze`.`sites_invertory_details`;
     """,
     """
-        MSCK REPAIR TABLE `brightsoutce_silver`.`inverters_data`;
+        MSCK REPAIR TABLE `brightsource_bronze`.`sites_metadata`;
     """,
     """
-        MSCK REPAIR TABLE `brightsoutce_silver`.`sites_invertory_details`;
+        MSCK REPAIR TABLE `brightsource_silver`.`inverters_data`;
     """,
     """
-        MSCK REPAIR TABLE `brightsoutce_silver`.`sites_metadata`;
+        MSCK REPAIR TABLE `brightsource_silver`.`sites_invertory_details`;
     """,
     """
-        MSCK REPAIR TABLE `brightsoutce_gold`.`inverters_data`;
+        MSCK REPAIR TABLE `brightsource_silver`.`sites_metadata`;
     """,
     """
-        MSCK REPAIR TABLE `brightsoutce_gold`.`inverters_data_agg`;
+        MSCK REPAIR TABLE `brightsource_gold`.`inverters_data`;
     """,
     """
-        MSCK REPAIR TABLE `brightsoutce_gold`.`sites_metadata`;
+        MSCK REPAIR TABLE `brightsource_gold`.`inverters_data_agg`;
+    """,
+    """
+        MSCK REPAIR TABLE `brightsource_gold`.`sites_metadata`;
     """]
 
     #Thables name
-    tables = ["sites_invertory_details_bronze", "sites_metadata_bronze","inverters_data_silver", "sites_invertory_details_silver", "sites_metadata_silver","inverters_data", "inverters_data_agg", "sites_metadata"]
+    tables = ["inverters_data_bronze", "sites_invertory_details_bronze", "sites_metadata_bronze","inverters_data_silver", "sites_invertory_details_silver", "sites_metadata_silver","inverters_data", "inverters_data_agg", "sites_metadata"]
     
     #A loop of updates tables
     for query, table in zip(queries, tables):
 
+        if table.endswith('bronze'):
+            database_name = 'bronze'
+        if table.endswith('silver'):
+            database_name = 'silver'
+        if table.endswith('gold'):
+            database_name = 'gold'
         Updating_tables = AthenaOperator(
             task_id=f'Updating_tables_{table}',
             query=query,
-            database="brightsoutce_silver",
+            database=f"brightsource_{database_name}",
             output_location='s3://airflow-results/'
         )

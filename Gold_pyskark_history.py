@@ -31,10 +31,10 @@ with DAG(
 
     #A query that updates the tables in athena
     queries = ["""
-        MSCK REPAIR TABLE `brightsoutce_gold`.`inverters_data`;
+        MSCK REPAIR TABLE `brightsource_gold`.`inverters_data`;
     """,
     """
-        MSCK REPAIR TABLE `brightsoutce_gold`.`inverters_data_agg`;
+        MSCK REPAIR TABLE `brightsource_gold`.`inverters_data_agg`;
     """]
 
     #Thables name
@@ -111,7 +111,7 @@ with DAG(
         Updating_tables = AthenaOperator(
             task_id=f'Updating_tables_{table}',
             query=query,
-            database="brightsoutce_silver",
+            database="brightsource_silver",
             output_location='s3://airflow-results/'
         )
 
