@@ -21,7 +21,7 @@ with DAG(
 
     #A query that updates the tables in athena
     queries = ["""
-        MSCK REPAIR TABLE `brightsource_bronze`.`sites_invertory_details`;
+        MSCK REPAIR TABLE `3_bronze`.`sites_invertory_details`;
     """,
     """
         MSCK REPAIR TABLE `brightsource_bronze`.`sites_metadata`;
