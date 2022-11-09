@@ -9,6 +9,7 @@ from airflow.providers.amazon.aws.operators.athena import AthenaOperator
 from airflow.operators.dagrun_operator import TriggerDagRunOperator
 from sqlalchemy import table
 
+
 with DAG(
     dag_id='refreshing_tables_athena_daily',
     schedule_interval='0 4 * * *',
