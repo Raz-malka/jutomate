@@ -97,7 +97,7 @@ with DAG(
     max_active_runs=1
 ) as dag:
     
-    start_date = "2022-02-05"
+    start_date = "2022-05-22"
     end_date = "2022-11-01"
     if (start_date is not None and  end_date is not None):
         start_date 	= datetime.datetime.strptime(start_date, '%Y-%m-%d').date()
