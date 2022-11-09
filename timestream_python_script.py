@@ -1,8 +1,13 @@
+import pendulum
+from airflow import DAG
 import boto3
 import pandas as pd
 import io
 import datetime
 from datetime import timedelta
+from airflow.operators.python_operator import PythonOperator
+from airflow.utils.trigger_rule import TriggerRule
+from airflow.operators.dummy_operator import DummyOperator
 
 # loop over date range
 def daterange(start_date, end_date):
@@ -82,11 +87,42 @@ def timestream_gold_writing(single_date):
                             print(err.response["Error"])
 
                     print("WriteRecords Status: [%s]" % result['ResponseMetadata']['HTTPStatusCode'])
+                    
+with DAG(
+    dag_id='timestream',
+    schedule_interval=None,
+    start_date=pendulum.datetime(2022, 1, 1, tz="UTC"),
+    catchup=False,
+    concurrency=10,
+    max_active_runs=1
+) as dag:
+    
+    start_date = "2022-02-05"
+    end_date = "2022-11-01"
+    if (start_date is not None and  end_date is not None):
+        start_date 	= datetime.datetime.strptime(start_date, '%Y-%m-%d').date()
+        end_date 	= datetime.datetime.strptime(end_date, '%Y-%m-%d').date()
+    
+    num_rows = 1
+    dummy_count = 1
+    rows_count = 0
+    dummy_prev_site = DummyOperator(task_id=f'dummy_site_{dummy_count - 1}', trigger_rule=TriggerRule.ALL_DONE, dag=dag)
+    dummy_after_site = DummyOperator(task_id=f'dummy_site_{dummy_count}', trigger_rule=TriggerRule.ALL_DONE, dag=dag)
+    for single_date in daterange(start_date, end_date):
 
-start_date = "2022-09-02"
-end_date = "2022-10-01"
-if (start_date is not None and  end_date is not None):
-	start_date 	= datetime.datetime.strptime(start_date, '%Y-%m-%d').date()
-	end_date 	= datetime.datetime.strptime(end_date, '%Y-%m-%d').date()
-for single_date in daterange(start_date, end_date):
-    timestream_gold_writing(single_date)
+        update_data_timestream = PythonOperator(
+            task_id='update_data_timestream_'+str(single_date),
+            provide_context=True,
+            dag=dag,
+            op_kwargs={
+                        "single_date": single_date
+                    },
+            python_callable=timestream_gold_writing, 
+            trigger_rule=TriggerRule.ALL_DONE)
+        if rows_count == num_rows:
+            rows_count = 0
+            dummy_count += 1
+            dummy_prev_site = dummy_after_site
+            dummy_after_site = DummyOperator(task_id=f'dummy_site_{dummy_count}', trigger_rule=TriggerRule.ALL_DONE, dag=dag)    
+        dummy_prev_site >> update_data_timestream >> dummy_after_site
+        rows_count = rows_count + 1

@@ -20,9 +20,6 @@ with DAG(
 
     #A query that updates the tables in athena
     queries = ["""
-        MSCK REPAIR TABLE `brightsource_bronze`.`inverters_data`;
-    """,
-    """
         MSCK REPAIR TABLE `brightsource_bronze`.`sites_invertory_details`;
     """,
     """
@@ -48,7 +45,7 @@ with DAG(
     """]
 
     #Thables name
-    tables = ["inverters_data_bronze", "sites_invertory_details_bronze", "sites_metadata_bronze","inverters_data_silver", "sites_invertory_details_silver", "sites_metadata_silver","inverters_data", "inverters_data_agg", "sites_metadata"]
+    tables = ["sites_invertory_details_bronze", "sites_metadata_bronze","inverters_data_silver", "sites_invertory_details_silver", "sites_metadata_silver","inverters_data", "inverters_data_agg", "sites_metadata"]
     
     #A loop of updates tables
     for query, table in zip(queries, tables):
