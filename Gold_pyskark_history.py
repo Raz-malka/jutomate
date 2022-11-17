@@ -18,7 +18,7 @@ with DAG(
     schedule_interval=None,
     start_date=pendulum.datetime(2022, 1, 1, tz="UTC"),
     catchup=False,
-    concurrency=10,
+    concurrency=20,
     max_active_runs=1
 ) as dag:
 
@@ -94,6 +94,9 @@ with DAG(
         step_adder = EmrAddStepsOperator(
             task_id=f'add_steps_{date_t}',
             job_flow_id=cluster_creator.output,
+            execution_timeout=timedelta(seconds=1200),
+            retries=2,
+            retry_delay=timedelta(seconds=15),
             steps=SPARK_STEPS
         )
 

@@ -1,4 +1,5 @@
 from pyspark.sql.functions import explode, arrays_zip
+from pyspark.sql.types import StringType, DoubleType
 from pyspark.sql import SparkSession
 from pyspark.sql.functions import lit, coalesce, col
 import argparse
@@ -91,10 +92,10 @@ exp_step2_df_inverters_data = exp_step2_df_inverters_data.withColumn("AC_Current
                                                          .withColumn("AC_Voltage", (exp_step2_df_inverters_data.AC_Voltage_L1 + exp_step2_df_inverters_data.AC_Voltage_L2 + exp_step2_df_inverters_data.AC_Voltage_L3)/3)\
                                                          .withColumn("Reactive_Power", (exp_step2_df_inverters_data.L1Data_reactivePower + exp_step2_df_inverters_data.L2Data_reactivePower + exp_step2_df_inverters_data.L3Data_reactivePower))\
                                                          .withColumn("Power_Factor", coalesce(exp_step2_df_inverters_data.L1Data_cosPhi, exp_step2_df_inverters_data.L2Data_cosPhi, exp_step2_df_inverters_data.L3Data_cosPhi))\
-                                                         .withColumn("AC_Power", lit(''))\
-                                                         .withColumn("DC_Current", lit(''))\
-                                                         .withColumn("DC_Power", lit(''))\
-                                                         .withColumn("Account_id", lit(''))
+                                                         .withColumn("AC_Power", lit(None).cast(DoubleType()))\
+                                                         .withColumn("DC_Current", lit(None).cast(DoubleType()))\
+                                                         .withColumn("DC_Power", lit(None).cast(DoubleType()))\
+                                                         .withColumn("Account_id", lit(None).cast(StringType()))
 exp_step2_df_inverters_data.write.mode("overwrite").parquet(s3_Silver_path_inverters_data)
 
 s3_Bronze_path_sites_invertory_details = "s3://bse-bronze/sites_invertory_details/dt={}/".format(date_t)
