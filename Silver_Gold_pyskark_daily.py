@@ -39,7 +39,6 @@ def timestream_gold_writing(date_t):
                 object = client_s3.Object('bse-gold', file_name)
                 object.download_fileobj(buffer)
                 df = pd.read_parquet(buffer)
-                df = df.replace('','0.0')
                 df = df.fillna(0)
                 
                 for x in range(len(df.axes[0])):
@@ -125,7 +124,7 @@ with DAG(
                     "date_t": date_t
                 },
         python_callable=timestream_gold_writing, 
-        trigger_rule=TriggerRule.ALL_DONE)
+        trigger_rule=TriggerRule.ONE_SUCCESS)
 
     #Thables name
     tables = ["inverters_data_silver", "sites_invertory_details_silver", "sites_metadata_silver", "inverters_data_gold", "inverters_data_agg_gold", "sites_metadata_gold"]
@@ -298,9 +297,8 @@ with DAG(
                     step_id=f"{{{{ task_instance.xcom_pull(task_ids='add_steps_{table}', key='return_value')[0] }}}}"
                 )
 
-                step_checker_inverters_data_silver >> step_adder_inverters_data_gold >> step_checker_inverters_data_gold >> cluster_remover
-                step_checker_inverters_data_gold >> update_data_timestream >> update_date_variable
-                cluster_remover >> update_data_timestream
+                step_checker_inverters_data_silver >> step_adder_inverters_data_gold >> step_checker_inverters_data_gold >> cluster_remover >> update_date_variable
+                step_checker_inverters_data_gold >> update_data_timestream
             
             else:
 

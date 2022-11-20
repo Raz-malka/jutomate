@@ -8,6 +8,7 @@ from datetime import timedelta
 from airflow.operators.python_operator import PythonOperator
 from airflow.utils.trigger_rule import TriggerRule
 from airflow.operators.dummy_operator import DummyOperator
+from airflow.models import Variable
 
 # loop over date range
 def daterange(start_date, end_date):
@@ -35,7 +36,6 @@ def timestream_gold_writing(single_date):
                 object = client_s3.Object('bse-gold', file_name)
                 object.download_fileobj(buffer)
                 df = pd.read_parquet(buffer)
-                df = df.replace('','0.0')
                 df = df.fillna(0)
                 
                 for x in range(len(df.axes[0])):
@@ -90,7 +90,7 @@ def timestream_gold_writing(single_date):
                     print("WriteRecords Status: [%s]" % result['ResponseMetadata']['HTTPStatusCode'])
                     
 with DAG(
-    dag_id='timestream',
+    dag_id='timestream_history',
     schedule_interval=None,
     start_date=pendulum.datetime(2022, 1, 1, tz="UTC"),
     catchup=False,
@@ -98,8 +98,8 @@ with DAG(
     max_active_runs=1
 ) as dag:
     
-    start_date = "2022-11-01"
-    end_date = "2022-11-16"
+    start_date = Variable.get("history_loop_start_date_timestream")
+    end_date = Variable.get("history_loop_end_date_timestream")
     if (start_date is not None and  end_date is not None):
         start_date 	= datetime.datetime.strptime(start_date, '%Y-%m-%d').date()
         end_date 	= datetime.datetime.strptime(end_date, '%Y-%m-%d').date()

@@ -83,5 +83,3 @@ exp_step1_df_inverters_data = df_inverters_data.select("Datetime",
                                                       )\
                                                .withColumn("Data_Source", lit('Solar Edge'))
 exp_step1_df_inverters_data.write.mode("overwrite").parquet(s3_Gold_path_inverters_data)
-
-df_inverters_data = spark.read.parquet("s3://bse-gold/inverters_data/dt=2022-11-14/")
