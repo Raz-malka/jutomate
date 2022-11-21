@@ -298,7 +298,7 @@ with DAG(
                 )
 
                 step_checker_inverters_data_silver >> step_adder_inverters_data_gold >> step_checker_inverters_data_gold >> cluster_remover >> update_date_variable
-                step_checker_inverters_data_gold >> update_data_timestream
+                step_checker_inverters_data_gold >> update_data_timestream >> update_date_variable
             
             else:
 
