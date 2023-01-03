@@ -90,6 +90,9 @@ with DAG(
         op_kwargs={
                     "datum_freq_min": 15
                   },
+        execution_timeout=timedelta(seconds=600),
+        retries=2,
+        retry_delay=timedelta(seconds=10),
         python_callable=update_site_list, 
         trigger_rule=TriggerRule.ALL_DONE)
     start >> update_site_list_task >> start_site_inverters_loop
