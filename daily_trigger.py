@@ -22,21 +22,23 @@ with DAG(
     run_get_all_sites_data_daily = TriggerDagRunOperator(
             task_id='run_get_all_sites_data_daily',
             trigger_dag_id='get_all_sites_data_daily',
-            wait_for_completion=True
+            wait_for_completion=True,
+            execution_timeout=timedelta(seconds=3000)
         )
 
     #Running the silver and gold daily dag
     run_silver_gold_daily = TriggerDagRunOperator(
             task_id='run_silver_gold_daily',
             trigger_dag_id='emr_job_flow_manual_steps_dag_silver_gold_daily',
-            wait_for_completion=True
+            wait_for_completion=True,
+            execution_timeout=timedelta(seconds=3000)
         )
 
     #Running the monitoring dag
-    run_monitoring = TriggerDagRunOperator(
-            task_id='run_monitoring',
-            trigger_dag_id='monitoring',
-            wait_for_completion=True
-        )
+    # run_monitoring = TriggerDagRunOperator(
+    #         task_id='run_monitoring',
+    #         trigger_dag_id='monitoring',
+    #         wait_for_completion=True
+    #     )
     
-    run_get_all_sites_data_daily >> run_silver_gold_daily >> run_monitoring
+    run_get_all_sites_data_daily >> run_silver_gold_daily #>> run_monitoring
