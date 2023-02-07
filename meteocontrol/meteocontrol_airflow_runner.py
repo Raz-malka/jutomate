@@ -8,9 +8,12 @@ DATE_KEY = '<date>'
 SITE_ID_KEY = '<site_id>'
 OBJECT_ID_KEY = '<object_id>'
 TIME_KEY = '<time>'
-SITES_METADATA_PATH_PATTERN = f'sites_metadata/dt={DATE_KEY}/site_details.json'
-SITE_INVENTORY_PATH_PATTERN = f'sites_invertory_details/dt={DATE_KEY}/site_id={SITE_ID_KEY}/{BUCKET_NAME_KEY}_sites_invertory_details_{DATE_KEY}_site_id_{SITE_ID_KEY}.json'
-INVERTER_PATH_PATTERN = f'inverters_data/dt={DATE_KEY}/site_id={SITE_ID_KEY}/inv_id={OBJECT_ID_KEY}/{BUCKET_NAME_KEY}_inverters_data_{DATE_KEY}_site_id_{SITE_ID_KEY}_inv_id_{OBJECT_ID_KEY}_{TIME_KEY}.json'
+SITES_NAMES_MAP_PATH_PATTERN = f'sites_metadata_meteocontrol/dt={DATE_KEY}/sites_names_map.json'
+SITES_TECHNICAL_DATA_PATH_PATTERN = f'sites_metadata_meteocontrol/dt={DATE_KEY}/site_technical_data.json'
+SITES_DETAILS_PATH_PATTERN = f'sites_metadata_meteocontrol/dt={DATE_KEY}/site_details.json'
+SITES_INVERTERS_PATH_PATTERN = f'sites_metadata_meteocontrol/dt={DATE_KEY}/inverters.json'
+SITE_INVENTORY_PATH_PATTERN = f'sites_invertory_details_meteocontrol/dt={DATE_KEY}/site_id={SITE_ID_KEY}/{BUCKET_NAME_KEY}_sites_invertory_details_{DATE_KEY}_site_id_{SITE_ID_KEY}.json'
+INVERTER_PATH_PATTERN = f'inverters_data_meteocontrol/dt={DATE_KEY}/site_id={SITE_ID_KEY}/inv_id={OBJECT_ID_KEY}/{BUCKET_NAME_KEY}_inverters_data_{DATE_KEY}_site_id_{SITE_ID_KEY}_inv_id_{OBJECT_ID_KEY}_{TIME_KEY}.json'
 
 class MeteocontrolAirFlowRunner:
 
@@ -41,23 +44,23 @@ class MeteocontrolAirFlowRunner:
     def get_sites_ids(self): 
         sites_names_map = self.base_api.get_sites()
         sites_names_map = sites_names_map.json()
-        sites_ids = [key['key'] for key in sites_names_map]
-        self.write_to_s3(sites_names_map, path_pattern = SITES_METADATA_PATH_PATTERN, start_time = datetime.today())
+        sites_ids = [key['key'] for key in sites_names_map['data']]
+        self.write_to_s3(sites_names_map, path_pattern = SITES_NAMES_MAP_PATH_PATTERN, start_time = datetime.today())
         return sites_ids
 
     
-    def get_sites_meta(self, sites):
-        for site in sites:
-            site_technical_data = self.base_api.get_site_technical_data(site)
-            site_details = self.base_api.get_site_details(site)
-            inverters = self.base_api.get_inverters(site)
-            self.write_to_s3(site_technical_data.json(), path_pattern = SITES_METADATA_PATH_PATTERN, start_time = datetime.today())
-            self.write_to_s3(site_details.json(), path_pattern = SITES_METADATA_PATH_PATTERN, start_time = datetime.today())
-            self.write_to_s3(inverters.json(), path_pattern = SITES_METADATA_PATH_PATTERN, start_time = datetime.today())
-
+    def get_sites_meta(self, site_id):
+        # for site in sites:
+        site_technical_data = self.base_api.get_site_technical_data(site_id)
+        site_details = self.base_api.get_site_details(site_id)
+        inverters = self.base_api.get_inverters(site_id)
+        self.write_to_s3(site_technical_data.json(), path_pattern = SITES_TECHNICAL_DATA_PATH_PATTERN, start_time = datetime.today())
+        self.write_to_s3(site_details.json(), path_pattern = SITES_DETAILS_PATH_PATTERN, start_time = datetime.today())
+        self.write_to_s3(inverters.json(), path_pattern = SITES_INVERTERS_PATH_PATTERN, start_time = datetime.today())
+        return inverters
 
     def get_inverters_meta(self, site_id, inverter):
-        inverter_details = self.base_api.get_inverter_details(site_id, inverter['data']['id'])
+        inverter_details = self.base_api.get_inverter_details(site_id, inverter)
         inverter_details = inverter_details.json()
         self.write_to_s3(inverter_details, path_pattern = SITE_INVENTORY_PATH_PATTERN, start_time =  datetime.today(), site_id = site_id)
         return inverter_details

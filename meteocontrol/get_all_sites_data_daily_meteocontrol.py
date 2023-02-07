@@ -15,7 +15,7 @@ from airflow import AirflowException
 from trackingutils import PositionControl
 from datesutil import Dates
 from Meteocontrol import Meteocontrol
-from meteocontrol_airflow_runner import meteocontrol_airflow_runner
+from meteocontrol_airflow_runner import MeteocontrolAirFlowRunner
     
 ## get datetime of now and the start of the day
 start_date   = datetime.datetime.combine(datetime.date.today(), datetime.datetime.min.time())
@@ -34,24 +34,21 @@ list_sites_meteocontrol     = Variable.get("list_sites_meteocontrol", deserializ
 ## brings the list of sites
 def update_site_list(datum_freq_min):
     base_api = Meteocontrol('743db7bfb9e21c88ac001b742e84b64361fe1a66ba06f84a75885a3a5bff1deb', 'https://api.meteocontrol.de/v2/systems', 'Basic WW90YW1fa3N0OmthY28xMjM0NTY=')
-    airflow_runner = meteocontrol_airflow_runner(base_api,"bse-bronze")
+    airflow_runner = MeteocontrolAirFlowRunner(base_api,"bse-bronze")
     # get site list
-    sites = airflow_runner.get_sites()
-    site_id_list = []
-    for site_dict in sites['data']:
-        site_id_list.append(site_dict.get('key'))
+    sites = airflow_runner.get_sites_ids()
     #update airflow variable
-    print(json.dumps(site_id_list))
-    Variable.set("list_sites_meteocontrol", json.dumps(site_id_list))
+    print(json.dumps(sites))
+    Variable.set("list_sites_meteocontrol", json.dumps(sites))
     print("Thanks you for getting sites list!")
 
 ## brings the list of inverters
 def update_inverters_list(datum_freq_min, site_id):
     base_api = Meteocontrol('743db7bfb9e21c88ac001b742e84b64361fe1a66ba06f84a75885a3a5bff1deb', 'https://api.meteocontrol.de/v2/systems', 'Basic WW90YW1fa3N0OmthY28xMjM0NTY=')
-    airflow_runner = meteocontrol_airflow_runner(base_api,"bse-bronze")
+    airflow_runner = MeteocontrolAirFlowRunner(base_api,"bse-bronze")
     # get inverter list
     inventer_id_list = []
-    inventory = airflow_runner.get_inverters(str(site_id))
+    inventory = airflow_runner.get_sites_meta(str(site_id))
     inverters = json.loads(inventory.text)['data']
     for inverter in inverters:
         #single inverter
@@ -60,11 +57,20 @@ def update_inverters_list(datum_freq_min, site_id):
     Variable.set("site_"+str(site_id)+"_inverters_list",json.dumps(inventer_id_list))
     print("Thanks you for getting inverts list!")
 
-## Brings the data by sites and by inverters
-def update_inverters_data(datum_freq_min,site_id, serial_num, start_date, end_date):
+
+def get_inverters_meta(datum_freq_min,site_id, inverter):
     base_api = Meteocontrol('743db7bfb9e21c88ac001b742e84b64361fe1a66ba06f84a75885a3a5bff1deb', 'https://api.meteocontrol.de/v2/systems', 'Basic WW90YW1fa3N0OmthY28xMjM0NTY=')
-    airflow_runner = meteocontrol_airflow_runner(base_api,"bse-bronze")
-    invereter_data = airflow_runner.get_invereter_data(str(site_id), serial_num, start_date, end_date)
+    airflow_runner = MeteocontrolAirFlowRunner(base_api,"bse-bronze")
+    inverters_meta = airflow_runner.get_inverters_meta(str(site_id), inverter)
+    print("inverters_meta:")
+    print(inverters_meta)
+    print("Thanks you for getting inverts list!")
+
+## Brings the data by sites and by inverters
+def update_inverters_data(datum_freq_min,site_id, date):
+    base_api = Meteocontrol('743db7bfb9e21c88ac001b742e84b64361fe1a66ba06f84a75885a3a5bff1deb', 'https://api.meteocontrol.de/v2/systems', 'Basic WW90YW1fa3N0OmthY28xMjM0NTY=')
+    airflow_runner = MeteocontrolAirFlowRunner(base_api,"bse-bronze")
+    invereter_data = airflow_runner.get_invereter_data(str(site_id), date)
     print("invereter_data:")
     print(invereter_data)
     print("Thanks you for getting inverts list!")
@@ -80,4 +86,6 @@ for site_id in list_sites_meteocontrol:
         list_inverters = []
 
     for inverter_id in list_inverters:
-        update_inverters_data(15, site_id, inverter_id, start_date, end_date)
+        get_inverters_meta(15, site_id, inverter_id)
+    
+    update_inverters_data(15, site_id, start_date.date())
