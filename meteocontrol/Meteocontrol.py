@@ -1,6 +1,6 @@
 import logging
 from requests.structures import CaseInsensitiveDict
-from Api import Api
+from meteocontrol.Api import Api
 import requests
 
 

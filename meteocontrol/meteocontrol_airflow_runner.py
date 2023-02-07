@@ -1,6 +1,6 @@
 import json
 from datetime import datetime
-from Meteocontrol import Meteocontrol
+from meteocontrol.Meteocontrol import Meteocontrol
 import boto3
 
 BUCKET_NAME_KEY = '<bucket>'

@@ -3,7 +3,7 @@ import logging
 import pandas as pd
 import numpy as np
 from os.path import exists
-from datesutil import Dates
+from meteocontrol.datesutil import Dates
 
 
 

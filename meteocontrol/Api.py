@@ -1,6 +1,6 @@
 import requests
 import logging
-from decorater_retry import retry
+from meteocontrol.decorater_retry import retry
 
 
 

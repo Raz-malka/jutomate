@@ -3,13 +3,13 @@ from datetime import datetime, timedelta
 import logging
 import sys
 from time import sleep
-from Meteocontrol import Meteocontrol
-from filesutil import Files
+from meteocontrol.Meteocontrol import Meteocontrol
+from meteocontrol.filesutil import Files
 import json
 import os
 import requests
-from trackingutils import PositionControl
-from datesutil import Dates
+from meteocontrol.trackingutils import PositionControl
+from meteocontrol.datesutil import Dates
 logger  = logging.getLogger()
 
 
